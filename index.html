@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>تحويل العملات - Gemini</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  /* ************************************************* */
+  /* تنسيقات عامة للـ BODY */
+  /* ************************************************* */
+  body { 
+    font-family: 'Arial', sans-serif; 
+    text-align: center; 
+    margin: 0; 
+    padding: 20px;
+    /* الخلفية سيتم تعيينها هنا بواسطة JavaScript */
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat; 
+    background-attachment: fixed; 
+    color: white; 
+    min-height: 100vh; 
+    display: flex; 
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative; 
+    transition: background-image 0.5s ease-in-out; /* إضافة انتقال سلس */
+  }
+
+  /* ************************************************* */
+  /* تنسيقات شاشة الترحيب (Splash Screen) */
+  /* ************************************************* */
+  #splashScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000; /* لتبقى فوق كل العناصر الأخرى */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end; /* وضع الزر في الأسفل */
+    align-items: center;
+    padding-bottom: 50px; /* مسافة للزر من الأسفل */
+    background: none; 
+  }
+
+  #startButton {
+    background-color: #00A86B; /* نفس لون زر التحويل */
+    color: white;
+    padding: 15px 40px;
+    border-radius: 10px;
+    border: none;
+    font-size: 1.5em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    box-shadow: 0 4px #007A4E;
+    margin-bottom: 20px;
+  }
+  #startButton:hover {
+    background-color: #007A4E;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  /* ************************************************* */
+  /* تنسيقات التطبيق الرئيسي (بقية التنسيقات) */
+  /* ************************************************* */
+  .container {
+    background-color: rgba(0, 0, 0, 0.85); 
+    padding: 30px; 
+    border-radius: 15px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.7); 
+    max-width: 90%; 
+    width: 400px; 
+    margin: 20px auto; 
+    position: relative; 
+  }
+  select, input { 
+    padding: 12px; 
+    margin: 10px 0; 
+    width: 80%; 
+    max-width: 300px; 
+    border-radius: 8px; 
+    border: 1px solid rgba(255, 255, 255, 0.4); 
+    background-color: rgba(255, 255, 255, 0.15); 
+    color: white; 
+    font-size: 1em;
+    -webkit-appearance: none; 
+    -moz-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    box-sizing: border-box; 
+  }
+  input:focus, select:focus {
+      outline: 2px solid #00A86B; 
+  }
+  input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  select option {
+    background-color: rgba(0, 0, 0, 0.9); 
+    color: white;
+  }
+  h2 { 
+    color: #00FF99; 
+    font-weight: bold;
+    margin-bottom: 25px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+  }
+  button.app-button {
+    background-color: #00A86B; 
+    color: white; 
+    padding: 12px 25px;
+    margin: 20px 0;
+    width: 80%; 
+    max-width: 300px; 
+    border-radius: 8px; 
+    border: none;
+    font-weight: bold;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+    box-shadow: 0 4px #007A4E; 
+  }
+  button.app-button:hover {
+    background-color: #007A4E; 
+  }
+  button.app-button:active {
+    box-shadow: 0 1px #007A4E;
+    transform: translateY(3px); 
+  }
+  .result { 
+    margin-top: 25px; 
+    font-size: 1.6em; 
+    color: #FFD700; 
+    font-weight: bold; 
+    background-color: rgba(0, 0, 0, 0.6); 
+    padding: 15px;
+    border-radius: 10px;
+    line-height: 1.6;
+    border: 1px solid #00A86B;
+  }
+  span {
+      font-weight: bold;
+      margin: 10px 0;
+      display: block; 
+      color: #D3D3D3; 
+  }
+  
+  /* تنسيق الإعلان */
+  .ad-placeholder {
+    margin-top: 25px;
+    padding: 15px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px dashed #FFD700; 
+    color: #FFD700;
+    font-size: 0.9em;
+    border-radius: 8px;
+    width: 90%; 
+    max-width: 400px;
+    text-align: center;
+    position: relative; /* لضبط تنسيقات الإعلان الداخلي */
+  }
+  .ad-title {
+      font-size: 1.1em;
+      font-weight: bold;
+      color: #00FF99;
+      margin-bottom: 5px;
+  }
+  .ad-text {
+      color: #D3D3D3;
+      margin-bottom: 10px;
+  }
+  .ad-button {
+      background-color: #3498db;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-weight: bold;
+      display: inline-block;
+      cursor: pointer;
+      transition: background-color 0.3s;
+  }
+  .ad-button:hover {
+      background-color: #2980b9;
+  }
+  
+  /* تنسيق عرض التاريخ */
+  .date-display {
+    position: absolute;
+    top: 20px; 
+    right: 20px; 
+    color: white; 
+    font-size: 0.95em;
+    font-weight: bold;
+    text-align: right;
+    line-height: 1.6;
+    background-color: rgba(0, 0, 0, 0.4); 
+    padding: 5px 10px;
+    border-radius: 5px;
+    z-index: 100;
+  }
+  
+  /* تنسيقات زر القائمة */
+  .menu-button {
+    position: absolute;
+    top: 20px;
+    left: 10px; 
+    background: none !important; 
+    border: none !important; 
+    color: white; 
+    font-size: 30px; 
+    cursor: pointer;
+    z-index: 100;
+    line-height: 0.5; 
+    font-weight: 900;
+    opacity: 0.9;
+    padding: 5px;
+  }
+  .menu-button:hover {
+      opacity: 1;
+  }
+  .dropdown-menu {
+    position: absolute;
+    top: 55px; 
+    left: 5px; 
+    background-color: rgba(30, 30, 30, 0.95);
+    border: 1px solid #00A86B;
+    border-radius: 8px;
+    padding: 10px 0;
+    z-index: 99;
+    list-style: none;
+    min-width: 150px;
+    text-align: right; 
+    display: none; 
+  }
+  .dropdown-menu.show {
+    display: block; 
+  }
+  .dropdown-menu li {
+    padding: 8px 15px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 0.9em;
+  }
+  .dropdown-menu li:hover {
+    background-color: #00A86B;
+  }
+</style>
+</head>
+<body dir="rtl">
+
+  <div id="splashScreen">
+    <button id="startButton" onclick="startApp()">START</button>
+  </div>
+
+  <div id="mainApp" class="hidden">
+    
+    <div id="dateDisplay" class="date-display">
+      </div>
+
+    <button class="menu-button" id="menuButton" onclick="toggleMenu()">
+        ⋮
+    </button>
+    
+    <ul class="dropdown-menu" id="languageMenu">
+        <li onclick="changeLanguage('ar'); toggleMenu();" data-lang-key="lang_arabic">العربية</li>
+        <li onclick="changeLanguage('en'); toggleMenu();" data-lang-key="lang_english">English</li>
+    </ul>
+
+    <div class="container">
+      <h2 id="mainTitle">محول العملات الفوري</h2>
+
+      <input type="number" id="amount" placeholder="أدخل المبلغ" min="0.01" value="1" data-lang-key="placeholder_amount">
+
+      <select id="fromCurrency"></select>
+
+      <span id="toText" data-lang-key="to_text">إلى</span>
+
+      <select id="toCurrency"></select>
+
+      <button onclick="convertCurrency()" id="convertButton" data-lang-key="button_convert" class="app-button">تحويل</button>
+
+      <div class="result" id="result"></div>
+    </div>
+
+    <div class="ad-placeholder">
+        <div class="ad-title">إعلان ممول: هاتف Samsung Galaxy A56</div>
+        <div class="ad-text">التقط صورًا مذهلة بفضل الكاميرا الاحترافية، واستمتع بعمر بطارية يدوم طويلاً، وشاشة Dynamic AMOLED فائقة الوضوح. الأداء القوي في متناول يدك!</div>
+        <a href="https://www.samsung.com/galaxy-a56/" class="ad-button" target="_blank">اكتشف الآن</a>
+    </div>
+  </div>
+
+
+<script>
+  // ***************************************************
+  // الروابط المطلوبة للتبديل:
+  // ***************************************************
+  // 1. رابط الخلفية الأصلية (التي تظهر بعد الضغط على START)
+  const ORIGINAL_BACKGROUND = "url('https://image.pollinations.ai/prompt/floating,bitcoin,dollar,currencies,crypto,digital,money,dark,background?width=1024&height=1024&seed=2')";
+  
+  // 2. رابط صورة الشاشة الافتتاحية الجديدة (صورة عملات رقمية جميلة)
+  const SPLASH_BACKGROUND = "url('https://image.pollinations.ai/prompt/abstract,cyber,currency,background,neon,glow?width=1024&height=1024&seed=22')";
+
+
+  // ***************************************************
+  // دالة تشغيل التطبيق (إخفاء شاشة الترحيب وتغيير الخلفية)
+  // ***************************************************
+  function startApp() {
+    // 1. تغيير خلفية body إلى الخلفية الأصلية
+    document.body.style.backgroundImage = ORIGINAL_BACKGROUND;
+    
+    // 2. إخفاء شاشة الترحيب
+    document.getElementById('splashScreen').classList.add('hidden');
+    
+    // 3. إظهار التطبيق الرئيسي
+    document.getElementById('mainApp').classList.remove('hidden');
+  }
+
+  // ***************************************************
+  // 1. دالة عرض التاريخ
+  // ***************************************************
+  function displayCurrentDates() {
+    const dateDisplay = document.getElementById('dateDisplay');
+    const today = new Date();
+
+    const gregorianDate = new Intl.DateTimeFormat('ar-EG', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+    }).format(today);
+
+    const hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+        year: 'numeric', month: 'long', day: 'numeric' 
+    }).format(today);
+
+    dateDisplay.innerHTML = `
+      <div style="margin-bottom: 2px;">${hijriDate} هـ</div>
+      <div>${gregorianDate} م</div>
+    `;
+  }
+  
+  // ***************************************************
+  // 2. قاموس الترجمة
+  // ***************************************************
+  const translations = {
+      'ar': {
+          'mainTitle': 'محول العملات الفوري',
+          'placeholder_amount': 'أدخل المبلغ',
+          'to_text': 'إلى',
+          'button_convert': 'تحويل',
+          'error_amount': 'الرجاء إدخال مبلغ صحيح وموجب.',
+          'error_rate': 'عذراً، سعر صرف إحدى العملات غير متوفر.',
+          'lang_arabic': 'العربية',
+          'lang_english': 'English',
+          'equals_text': 'يساوي'
+      },
+      'en': {
+          'mainTitle': 'Instant Currency Converter',
+          'placeholder_amount': 'Enter Amount',
+          'to_text': 'To',
+          'button_convert': 'Convert',
+          'error_amount': 'Please enter a valid, positive amount.',
+          'error_rate': 'Sorry, the exchange rate for one of the currencies is unavailable.',
+          'lang_arabic': 'العربية',
+          'lang_english': 'English',
+          'equals_text': 'Equals'
+      }
+  };
+
+  // ***************************************************
+  // 3. دالة تبديل اللغة وتحديث الواجهة
+  // ***************************************************
+  function changeLanguage(lang) {
+      const currentTranslation = translations[lang];
+      if (!currentTranslation) return;
+
+      document.getElementById('mainTitle').textContent = currentTranslation.mainTitle;
+      document.getElementById('amount').placeholder = currentTranslation.placeholder_amount;
+      document.getElementById('toText').textContent = currentTranslation.to_text;
+      document.getElementById('convertButton').textContent = currentTranslation.button_convert;
+      
+      if (lang === 'ar') {
+          document.body.dir = 'rtl';
+      } else {
+          document.body.dir = 'ltr';
+      }
+      
+      document.getElementById('result').textContent = ''; 
+  }
+  
+  // ***************************************************
+  // 4. دالة تبديل ظهور القائمة المنسدلة
+  // ***************************************************
+  function toggleMenu() {
+      const menu = document.getElementById('languageMenu');
+      menu.classList.toggle('show');
+  }
+
+  // ***************************************************
+  // 5. أسعار الصرف وبقية الدوال
+  // ***************************************************
+  
+  const exchangeRates = {
+    'USD': 1.0, 'EUR': 0.92, 'GBP': 0.81, 'JPY': 155.0, 'CAD': 1.37, 'RUB': 93.0, 'ILS': 3.74, 'ARS': 878.0, 'BRL': 5.15, 'SAR': 3.75, 'AED': 3.67, 'JOD': 0.71, 'KWD': 0.31, 'BHD': 0.37, 'QAR': 3.64, 'OMR': 0.38, 'EGP': 47.5, 'LBP': 89500, 'SYP': 13500,
+  };
+  
+  const currencyNames = {
+    'USD': 'دولار أمريكي (USD)', 'EUR': 'يورو (EUR)', 'GBP': 'جنيه استرليني (GBP)', 'JPY': 'ين ياباني (JPY)', 'CAD': 'دولار كندي (CAD)', 'RUB': 'روبل روسي (RUB)', 'ILS': 'شيكل إسرائيلي (ILS)', 'ARS': 'بيزو أرجنتيني (ARS)', 'BRL': 'ريال برازيلي (BRL)', 'SAR': 'ريال سعودي (SAR)', 'AED': 'درهم إماراتي (AED)', 'JOD': 'دينار أردني (JOD)', 'KWD': 'دينار كويتي (KWD)', 'BHD': 'دينار بحريني (BHD)', 'QAR': 'ريال قطري (QAR)', 'OMR': 'ريال عماني (OMR)', 'EGP': 'جنيه مصري (EGP)', 'LBP': 'ليرة لبنانية (LBP)', 'SYP': 'ليرة سورية (SYP)',
+  };
+
+  function populateCurrencies() {
+    const fromSelect = document.getElementById('fromCurrency');
+    const toSelect = document.getElementById('toCurrency');
+    
+    fromSelect.innerHTML = '';
+    toSelect.innerHTML = '';
+
+    for (const code in currencyNames) {
+      if (exchangeRates.hasOwnProperty(code)) {
+        const name = currencyNames[code];
+        
+        const option = document.createElement('option');
+        option.value = code;
+        option.textContent = name;
+        
+        const optionClone = option.cloneNode(true);
+        
+        fromSelect.appendChild(option);
+        toSelect.appendChild(optionClone);
+      }
+    }
+    
+    fromSelect.value = 'USD'; 
+    toSelect.value = 'SYP';
+  }
+
+
+  function convertCurrency() {
+    const amountInput = document.getElementById('amount');
+    const from = document.getElementById('fromCurrency').value;
+    const to = document.getElementById('toCurrency').value;
+    const resultDiv = document.getElementById('result');
+    const amount = parseFloat(amountInput.value);
+    
+    const currentLang = document.body.dir === 'rtl' ? 'ar' : 'en';
+    const translation = translations[currentLang];
+
+
+    if (isNaN(amount) || amount <= 0) {
+      resultDiv.innerText = translation.error_amount;
+      return;
+    }
+    
+    if (!exchangeRates.hasOwnProperty(from) || !exchangeRates.hasOwnProperty(to)) {
+      resultDiv.innerText = translation.error_rate;
+      return;
+    }
+
+    const amountInUSD = amount / exchangeRates[from];
+    const convertedAmount = amountInUSD * exchangeRates[to];
+    
+    const formattedOriginal = formatCurrency(amount, from);
+    const formattedConverted = formatCurrency(convertedAmount, to);
+    const equalsText = translation.equals_text; 
+
+    resultDiv.innerHTML = `
+      ${formattedOriginal} ${from}
+      <br>
+      ${equalsText}
+      <br>
+      ${formattedConverted} ${to}
+    `;
+  }
+
+  function formatCurrency(value, currencyCode) {
+    try {
+      const maxDigits = (currencyCode === 'SYP' || currencyCode === 'LBP') ? 0 : 2; 
+      const locale = document.body.dir === 'rtl' ? 'ar-EG' : 'en-US'; 
+
+      return new Intl.NumberFormat(locale, {
+        style: 'decimal', 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: maxDigits 
+      }).format(value);
+    } catch (e) {
+      return value.toFixed(2);
+    }
+  }
+  
+  // ***************************************************
+  // وظيفة يتم تنفيذها عند تحميل الصفحة (تطبيق خلفية الشاشة الافتتاحية أولاً)
+  // ***************************************************
+  window.onload = function() {
+      // 1. تطبيق خلفية الشاشة الافتتاحية الجديدة كخلفية أولية للـ body
+      document.body.style.backgroundImage = SPLASH_BACKGROUND;
+      
+      // 2. إخفاء الواجهة الرئيسية في البداية
+      document.getElementById('mainApp').classList.add('hidden'); 
+      
+      populateCurrencies();
+      displayCurrentDates(); 
+      changeLanguage('ar'); 
+  }
+  
+  // إخفاء القائمة عند النقر خارجها
+  document.addEventListener('click', function(event) {
+    const menu = document.getElementById('languageMenu');
+    const button = document.getElementById('menuButton');
+    
+    if (menu.classList.contains('show') && !menu.contains(event.target) && event.target !== button) {
+        menu.classList.remove('show');
+    }
+  });
+
+</script>
+
+</body>
+</html>
