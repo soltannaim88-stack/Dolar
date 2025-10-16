@@ -6,6 +6,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   /* ************************************************* */
+  /* إعادة تعيين المربع (Reset Box Sizing) لضمان عدم الخروج عن الحدود */
+  /* ************************************************* */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  /* ************************************************* */
   /* تنسيقات عامة للـ BODY */
   /* ************************************************* */
   body { 
@@ -13,7 +20,6 @@
     text-align: center; 
     margin: 0; 
     padding: 20px;
-    /* الخلفية سيتم تعيينها هنا بواسطة JavaScript */
     background-size: cover; 
     background-position: center; 
     background-repeat: no-repeat; 
@@ -25,7 +31,19 @@
     justify-content: center;
     align-items: center;
     position: relative; 
-    transition: background-image 0.5s ease-in-out; /* إضافة انتقال سلس */
+    transition: background-image 0.5s ease-in-out; 
+  }
+
+  /* ************************************************* */
+  /* تنسيقات لإخفاء أسهم حقل الرقم في المتصفحات (مهم للموبايل) */
+  /* ************************************************* */
+  input[type=number]::-webkit-inner-spin-button, 
+  input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+  }
+  input[type=number] {
+    -moz-appearance: textfield; /* Firefox */
   }
 
   /* ************************************************* */
@@ -37,17 +55,17 @@
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 1000; /* لتبقى فوق كل العناصر الأخرى */
+    z-index: 1000; 
     display: flex;
     flex-direction: column;
-    justify-content: flex-end; /* وضع الزر في الأسفل */
+    justify-content: flex-end; 
     align-items: center;
-    padding-bottom: 50px; /* مسافة للزر من الأسفل */
+    padding-bottom: 50px; 
     background: none; 
   }
 
   #startButton {
-    background-color: #00A86B; /* نفس لون زر التحويل */
+    background-color: #00A86B; 
     color: white;
     padding: 15px 40px;
     border-radius: 10px;
@@ -72,7 +90,7 @@
   /* ************************************************* */
   .container {
     background-color: rgba(0, 0, 0, 0.85); 
-    padding: 30px; 
+    padding: 30px 20px; /* تقليل عرض البادينغ الداخلي ليناسب الموبايل */
     border-radius: 15px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.7); 
     max-width: 90%; 
@@ -83,8 +101,8 @@
   select, input { 
     padding: 12px; 
     margin: 10px 0; 
-    width: 80%; 
-    max-width: 300px; 
+    width: 90%; /* زيادة عرض الحقول قليلاً */
+    max-width: 350px; 
     border-radius: 8px; 
     border: 1px solid rgba(255, 255, 255, 0.4); 
     background-color: rgba(255, 255, 255, 0.15); 
@@ -113,13 +131,17 @@
     border-bottom: 2px solid rgba(255, 255, 255, 0.1);
     padding-bottom: 10px;
   }
+  
+  /* ************************************************* */
+  /* تنسيقات زر التحويل (Convert Button) */
+  /* ************************************************* */
   button.app-button {
     background-color: #00A86B; 
     color: white; 
     padding: 12px 25px;
     margin: 20px 0;
-    width: 80%; 
-    max-width: 300px; 
+    width: 90%; /* زيادة عرض الزر */
+    max-width: 350px; 
     border-radius: 8px; 
     border: none;
     font-weight: bold;
@@ -135,6 +157,32 @@
     box-shadow: 0 1px #007A4E;
     transform: translateY(3px); 
   }
+  
+  /* ************************************************* */
+  /* تنسيق زر التبديل (Swap Button) - تم تعديله ليناسب الموبايل */
+  /* ************************************************* */
+  #swapButton {
+    background: none; 
+    border: none; 
+    color: #00FF99; 
+    font-size: 2.5em; 
+    cursor: pointer;
+    margin: 10px auto; 
+    display: block; 
+    width: 50px; /* تحديد عرض صغير */
+    height: 50px; /* تحديد ارتفاع صغير */
+    line-height: 50px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    text-align: center;
+    padding: 0;
+  }
+  #swapButton:active {
+    transform: rotate(180deg);
+  }
+  #swapButton:hover {
+    opacity: 0.8;
+  }
+  
   .result { 
     margin-top: 25px; 
     font-size: 1.6em; 
@@ -165,7 +213,7 @@
     width: 90%; 
     max-width: 400px;
     text-align: center;
-    position: relative; /* لضبط تنسيقات الإعلان الداخلي */
+    position: relative; 
   }
   .ad-title {
       font-size: 1.1em;
@@ -192,7 +240,9 @@
       background-color: #2980b9;
   }
   
-  /* تنسيق عرض التاريخ */
+  /* ************************************************* */
+  /* تنسيق عرض التاريخ وزر التبديل */
+  /* ************************************************* */
   .date-display {
     position: absolute;
     top: 20px; 
@@ -201,11 +251,32 @@
     font-size: 0.95em;
     font-weight: bold;
     text-align: right;
-    line-height: 1.6;
+    line-height: 1.4;
     background-color: rgba(0, 0, 0, 0.4); 
     padding: 5px 10px;
     border-radius: 5px;
     z-index: 100;
+    display: flex; 
+    flex-direction: column; 
+    align-items: flex-end; 
+    min-width: 150px; /* تحديد عرض أدنى ليتسع للتاريخ */
+  }
+
+  #dateToggle {
+    background-color: rgba(0, 0, 0, 0.5); 
+    color: #FFD700; 
+    padding: 5px 10px;
+    border-radius: 5px;
+    border: 1px solid #FFD700;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 0.85em;
+    margin-top: 8px;
+    transition: background-color 0.3s;
+  }
+  #dateToggle:hover {
+    background-color: #FFD700;
+    color: #000;
   }
   
   /* تنسيقات زر القائمة */
@@ -237,7 +308,7 @@
     padding: 10px 0;
     z-index: 99;
     list-style: none;
-    min-width: 150px;
+    min-width: 120px; /* تصغير القائمة لتناسب الموبايل */
     text-align: right; 
     display: none; 
   }
@@ -278,13 +349,17 @@
     <div class="container">
       <h2 id="mainTitle">محول العملات الفوري</h2>
 
-      <input type="number" id="amount" placeholder="أدخل المبلغ" min="0.01" value="1" data-lang-key="placeholder_amount">
+      <input type="number" id="amount" placeholder="أدخل المبلغ" min="0.01" value="1" data-lang-key="placeholder_amount" oninput="convertCurrency()" inputmode="numeric">
 
-      <select id="fromCurrency"></select>
+      <select id="fromCurrency" onchange="convertCurrency()"></select>
+      
+      <button onclick="swapCurrencies()" id="swapButton" title="تبديل العملات">
+          &#x21C6;
+      </button>
 
       <span id="toText" data-lang-key="to_text">إلى</span>
 
-      <select id="toCurrency"></select>
+      <select id="toCurrency" onchange="convertCurrency()"></select>
 
       <button onclick="convertCurrency()" id="convertButton" data-lang-key="button_convert" class="app-button">تحويل</button>
 
@@ -303,29 +378,26 @@
   // ***************************************************
   // الروابط المطلوبة للتبديل:
   // ***************************************************
-  // 1. رابط الخلفية الأصلية (التي تظهر بعد الضغط على START)
   const ORIGINAL_BACKGROUND = "url('https://image.pollinations.ai/prompt/floating,bitcoin,dollar,currencies,crypto,digital,money,dark,background?width=1024&height=1024&seed=2')";
-  
-  // 2. رابط صورة الشاشة الافتتاحية الجديدة (صورة عملات رقمية جميلة)
   const SPLASH_BACKGROUND = "url('https://image.pollinations.ai/prompt/abstract,cyber,currency,background,neon,glow?width=1024&height=1024&seed=22')";
 
+  // ***************************************************
+  // متغير لتتبع وضع التقويم الحالي - يبدأ بالميلادي ليكون هو الظاهر
+  // ***************************************************
+  let currentCalendarMode = 'gregorian'; // 'gregorian' (ميلادي) or 'hijri' (هجري)
 
   // ***************************************************
   // دالة تشغيل التطبيق (إخفاء شاشة الترحيب وتغيير الخلفية)
   // ***************************************************
   function startApp() {
-    // 1. تغيير خلفية body إلى الخلفية الأصلية
     document.body.style.backgroundImage = ORIGINAL_BACKGROUND;
-    
-    // 2. إخفاء شاشة الترحيب
     document.getElementById('splashScreen').classList.add('hidden');
-    
-    // 3. إظهار التطبيق الرئيسي
     document.getElementById('mainApp').classList.remove('hidden');
+    convertCurrency(); // تشغيل التحويل عند بدء التشغيل
   }
 
   // ***************************************************
-  // 1. دالة عرض التاريخ
+  // 1. دالة عرض التاريخ مع زر التبديل - تم تعديلها لإظهار تاريخ واحد فقط
   // ***************************************************
   function displayCurrentDates() {
     const dateDisplay = document.getElementById('dateDisplay');
@@ -336,13 +408,34 @@
     }).format(today);
 
     const hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
-        year: 'numeric', month: 'long', day: 'numeric' 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
     }).format(today);
+    
+    let dateToShow;
+    let buttonText;
+    
+    // تحديد التاريخ الذي سيظهر ونص الزر للتبديل
+    if (currentCalendarMode === 'gregorian') {
+        dateToShow = gregorianDate + ' م';
+        buttonText = 'عرض الهجري';
+    } else {
+        dateToShow = hijriDate + ' هـ';
+        buttonText = 'عرض الميلادي';
+    }
 
     dateDisplay.innerHTML = `
-      <div style="margin-bottom: 2px;">${hijriDate} هـ</div>
-      <div>${gregorianDate} م</div>
+      <div style="font-size: 1.1em; color: #00FF99;">${dateToShow}</div>
+      <button id="dateToggle" onclick="toggleCalendar()">${buttonText}</button>
     `;
+  }
+  
+  // ***************************************************
+  // دالة تبديل التقويم
+  // ***************************************************
+  function toggleCalendar() {
+      // تبديل الوضع بين الميلادي والهجري
+      currentCalendarMode = (currentCalendarMode === 'gregorian') ? 'hijri' : 'gregorian';
+      displayCurrentDates(); // إعادة عرض التاريخ بالوضع الجديد
   }
   
   // ***************************************************
@@ -403,7 +496,21 @@
   }
 
   // ***************************************************
-  // 5. أسعار الصرف وبقية الدوال
+  // 5. دالة تبديل العملات (Swap Currencies)
+  // ***************************************************
+  function swapCurrencies() {
+      const fromSelect = document.getElementById('fromCurrency');
+      const toSelect = document.getElementById('toCurrency');
+      const tempValue = fromSelect.value;
+      
+      fromSelect.value = toSelect.value;
+      toSelect.value = tempValue;
+      
+      convertCurrency(); // التحويل فوراً بعد التبديل
+  }
+  
+  // ***************************************************
+  // 6. أسعار الصرف وبقية الدوال
   // ***************************************************
   
   const exchangeRates = {
@@ -494,13 +601,10 @@
   }
   
   // ***************************************************
-  // وظيفة يتم تنفيذها عند تحميل الصفحة (تطبيق خلفية الشاشة الافتتاحية أولاً)
+  // وظيفة يتم تنفيذها عند تحميل الصفحة
   // ***************************************************
   window.onload = function() {
-      // 1. تطبيق خلفية الشاشة الافتتاحية الجديدة كخلفية أولية للـ body
       document.body.style.backgroundImage = SPLASH_BACKGROUND;
-      
-      // 2. إخفاء الواجهة الرئيسية في البداية
       document.getElementById('mainApp').classList.add('hidden'); 
       
       populateCurrencies();
