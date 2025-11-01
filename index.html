@@ -1,296 +1,640 @@
-// ***************************************************
-// الروابط المطلوبة للخلفيات:
-// ***************************************************
-const ORIGINAL_BACKGROUND = "url('https://image.pollinations.ai/prompt/floating,bitcoin,dollar,currencies,crypto,digital,money,dark,background?width=1024&height=1024&seed=2')";
-const SPLASH_BACKGROUND = "url('https://image.pollinations.ai/prompt/abstract,cyber,currency,background,neon,glow?width=1024&height=1024&seed=22')";
-
-// ***************************************************
-// بيانات API والمخزن المؤقت (CACHE)
-// ***************************************************
-const API_KEY = '68667c547b32d00728aef432'; // مفتاح API الخاص بك
-const BASE_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`;
-const CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // مدة التخزين المؤقت: 6 ساعات (للحفاظ على الحصة المجانية)
-
-let liveExchangeRates = {}; // لتخزين الأسعار التي تم جلبها
-let lastFetchTimestamp = 0; // لتخزين آخر وقت تم فيه الجلب
-
-// ***************************************************
-// العملات المدعومة
-// ***************************************************
-const supportedCurrencies = {
-    'USD': 'دولار أمريكي (USD)', 'EUR': 'يورو (EUR)', 'GBP': 'جنيه استرليني (GBP)', 
-    'JPY': 'ين ياباني (JPY)', 'CAD': 'دولار كندي (CAD)', 'RUB': 'روبل روسي (RUB)', 
-    'ILS': 'شيكل إسرائيلي (ILS)', 'ARS': 'بيزو أرجنتيني (ARS)', 'BRL': 'ريال برازيلي (BRL)', 
-    'SAR': 'ريال سعودي (SAR)', 'AED': 'درهم إماراتي (AED)', 'JOD': 'دينار أردني (JOD)', 
-    'KWD': 'دينار كويتي (KWD)', 'BHD': 'دينار بحريني (BHD)', 'QAR': 'ريال قطري (QAR)', 
-    'OMR': 'ريال عماني (OMR)', 'EGP': 'جنيه مصري (EGP)', 'LBP': 'ليرة لبنانية (LBP)', 
-    'SYP': 'ليرة سورية (SYP)',
-};
-
-// ***************************************************
-// دالة تشغيل التطبيق
-// ***************************************************
-function startApp() {
-  document.body.style.backgroundImage = ORIGINAL_BACKGROUND;
-  document.getElementById('splashScreen').classList.add('hidden');
-  document.getElementById('mainApp').classList.remove('hidden');
-  populateCurrencies(); // استدعاء جلب الأسعار وتعبئة القوائم
-}
-
-// ***************************************************
-// 1. دوال عرض وتقليب التاريخ
-// ***************************************************
-let currentCalendarMode = 'gregorian'; 
-
-function displayCurrentDates() {
-  const dateDisplay = document.getElementById('dateDisplay');
-  const today = new Date();
-
-  const gregorianDate = new Intl.DateTimeFormat('ar-EG', { 
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-  }).format(today);
-
-  const hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-  }).format(today);
-  
-  let dateToShow;
-  let buttonText;
-  
-  if (currentCalendarMode === 'gregorian') {
-      dateToShow = gregorianDate + ' م';
-      buttonText = 'عرض الهجري';
-  } else {
-      dateToShow = hijriDate + ' هـ';
-      buttonText = 'عرض الميلادي';
+<!DOCTYPE html>
+<html>
+<head>
+<title>تحويل العملات - Dolar SOS</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  /* ************************************************* */
+  /* إعادة تعيين المربع (Reset Box Sizing) لضمان عدم الخروج عن الحدود */
+  /* ************************************************* */
+  *, *::before, *::after {
+    box-sizing: border-box;
   }
 
-  dateDisplay.innerHTML = `
-    <div style="font-size: 1.1em; color: #00FF99;">${dateToShow}</div>
-    <button id="dateToggle" onclick="toggleCalendar()">${buttonText}</button>
-  `;
-}
+  /* ************************************************* */
+  /* تنسيقات عامة للـ BODY */
+  /* ************************************************* */
+  body { 
+    font-family: 'Arial', sans-serif; 
+    text-align: center; 
+    margin: 0; 
+    padding: 20px;
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat; 
+    background-attachment: fixed; 
+    color: white; 
+    min-height: 100vh; 
+    display: flex; 
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative; 
+    transition: background-image 0.5s ease-in-out; 
+  }
 
-function toggleCalendar() {
-    currentCalendarMode = (currentCalendarMode === 'gregorian') ? 'hijri' : 'gregorian';
-    displayCurrentDates(); 
-}
+  /* ************************************************* */
+  /* تنسيقات لإخفاء أسهم حقل الرقم في المتصفحات (مهم للموبايل) */
+  /* ************************************************* */
+  input[type=number]::-webkit-inner-spin-button, 
+  input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+  }
+  input[type=number] {
+    -moz-appearance: textfield; /* Firefox */
+  }
 
-// ***************************************************
-// 2. قاموس الترجمة
-// ***************************************************
-const translations = {
-    'ar': {
-        'mainTitle': 'محول العملات الفوري (أسعار حية)',
-        'placeholder_amount': 'أدخل المبلغ',
-        'to_text': 'إلى',
-        'button_convert': 'تحويل',
-        'error_amount': 'الرجاء إدخال مبلغ صحيح وموجب.',
-        'error_rate': 'عذراً، سعر صرف إحدى العملات غير متوفر.',
-        'lang_arabic': 'العربية',
-        'lang_english': 'English',
-        'equals_text': 'يساوي'
-    },
-    'en': {
-        'mainTitle': 'Instant Currency Converter (Live Rates)',
-        'placeholder_amount': 'Enter Amount',
-        'to_text': 'To',
-        'button_convert': 'Convert',
-        'error_amount': 'Please enter a valid, positive amount.',
-        'error_rate': 'Sorry, the exchange rate for one of the currencies is unavailable.',
-        'lang_arabic': 'العربية',
-        'lang_english': 'English',
-        'equals_text': 'Equals'
-    }
-};
+  /* ************************************************* */
+  /* تنسيقات شاشة الترحيب (Splash Screen) */
+  /* ************************************************* */
+  #splashScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000; 
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end; 
+    align-items: center;
+    padding-bottom: 50px; 
+    background: none; 
+  }
 
-// ***************************************************
-// 3. دالة تبديل اللغة وتحديث الواجهة
-// ***************************************************
-function changeLanguage(lang) {
-    const currentTranslation = translations[lang];
-    if (!currentTranslation) return;
+  #startButton {
+    background-color: #00A86B; 
+    color: white;
+    padding: 15px 40px;
+    border-radius: 10px;
+    border: none;
+    font-size: 1.5em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    box-shadow: 0 4px #007A4E;
+    margin-bottom: 20px;
+  }
+  #startButton:hover {
+    background-color: #007A4E;
+  }
 
-    document.getElementById('mainTitle').textContent = currentTranslation.mainTitle;
-    document.getElementById('amount').placeholder = currentTranslation.placeholder_amount;
-    document.getElementById('toText').textContent = currentTranslation.to_text;
-    document.getElementById('convertButton').textContent = currentTranslation.button_convert;
+  .hidden {
+    display: none !important;
+  }
+
+  /* ************************************************* */
+  /* تنسيقات التطبيق الرئيسي (بقية التنسيقات) */
+  /* ************************************************* */
+  .container {
+    background-color: rgba(0, 0, 0, 0.85); 
+    padding: 30px 20px; /* تقليل عرض البادينغ الداخلي ليناسب الموبايل */
+    border-radius: 15px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.7); 
+    max-width: 90%; 
+    width: 400px; 
+    margin: 20px auto; 
+    position: relative; 
+  }
+  select, input { 
+    padding: 12px; 
+    margin: 10px 0; 
+    width: 90%; /* زيادة عرض الحقول قليلاً */
+    max-width: 350px; 
+    border-radius: 8px; 
+    border: 1px solid rgba(255, 255, 255, 0.4); 
+    background-color: rgba(255, 255, 255, 0.15); 
+    color: white; 
+    font-size: 1em;
+    -webkit-appearance: none; 
+    -moz-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    box-sizing: border-box; 
+  }
+  input:focus, select:focus {
+      outline: 2px solid #00A86B; 
+  }
+  input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  select option {
+    background-color: rgba(0, 0, 0, 0.9); 
+    color: white;
+  }
+  h2 { 
+    color: #00FF99; 
+    font-weight: bold;
+    margin-bottom: 25px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+  }
+  
+  /* ************************************************* */
+  /* تنسيقات زر التحويل (Convert Button) */
+  /* ************************************************* */
+  button.app-button {
+    background-color: #00A86B; 
+    color: white; 
+    padding: 12px 25px;
+    margin: 20px 0;
+    width: 90%; /* زيادة عرض الزر */
+    max-width: 350px; 
+    border-radius: 8px; 
+    border: none;
+    font-weight: bold;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+    box-shadow: 0 4px #007A4E; 
+  }
+  button.app-button:hover {
+    background-color: #007A4E; 
+  }
+  button.app-button:active {
+    box-shadow: 0 1px #007A4E;
+    transform: translateY(3px); 
+  }
+  
+  /* ************************************************* */
+  /* تنسيق زر التبديل (Swap Button) */
+  /* ************************************************* */
+  #swapButton {
+    background: none; 
+    border: none; 
+    color: #00FF99; 
+    font-size: 2.5em; 
+    cursor: pointer;
+    margin: 10px auto; 
+    display: block; 
+    width: 50px; 
+    height: 50px; 
+    line-height: 50px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    text-align: center;
+    padding: 0;
+  }
+  #swapButton:active {
+    transform: rotate(180deg);
+  }
+  #swapButton:hover {
+    opacity: 0.8;
+  }
+  
+  .result { 
+    margin-top: 25px; 
+    font-size: 1.6em; 
+    color: #FFD700; 
+    font-weight: bold; 
+    background-color: rgba(0, 0, 0, 0.6); 
+    padding: 15px;
+    border-radius: 10px;
+    line-height: 1.6;
+    border: 1px solid #00A86B;
+  }
+  span {
+      font-weight: bold;
+      margin: 10px 0;
+      display: block; 
+      color: #D3D3D3; 
+  }
+  
+  /* تنسيق الإعلان (تم تحسينه ليكون أكثر واقعية) */
+  .ad-placeholder {
+    margin-top: 25px;
+    padding: 15px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px dashed #FFD700; 
+    color: #FFD700;
+    font-size: 0.9em;
+    border-radius: 8px;
+    width: 90%; 
+    max-width: 400px;
+    text-align: center;
+    position: relative; 
+  }
+  .ad-title {
+      font-size: 1.1em;
+      font-weight: bold;
+      color: #00FF99;
+      margin-bottom: 5px;
+  }
+  .ad-text {
+      color: #D3D3D3;
+      margin-bottom: 10px;
+  }
+  .ad-button {
+      background-color: #3498db;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-weight: bold;
+      display: inline-block;
+      cursor: pointer;
+      transition: background-color 0.3s;
+  }
+  .ad-button:hover {
+      background-color: #2980b9;
+  }
+  
+  /* ************************************************* */
+  /* تنسيق عرض التاريخ وزر التبديل */
+  /* ************************************************* */
+  .date-display {
+    position: absolute;
+    top: 20px; 
+    right: 20px; 
+    color: white; 
+    font-size: 0.95em;
+    font-weight: bold;
+    text-align: right;
+    line-height: 1.4;
+    background-color: rgba(0, 0, 0, 0.4); 
+    padding: 5px 10px;
+    border-radius: 5px;
+    z-index: 100;
+    display: flex; 
+    flex-direction: column; 
+    align-items: flex-end; 
+    min-width: 150px; 
+  }
+
+  #dateToggle {
+    background-color: rgba(0, 0, 0, 0.5); 
+    color: #FFD700; 
+    padding: 5px 10px;
+    border-radius: 5px;
+    border: 1px solid #FFD700;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 0.85em;
+    margin-top: 8px;
+    transition: background-color 0.3s;
+  }
+  #dateToggle:hover {
+    background-color: #FFD700;
+    color: #000;
+  }
+  
+  /* تنسيقات زر القائمة */
+  .menu-button {
+    position: absolute;
+    top: 20px;
+    left: 10px; 
+    background: none !important; 
+    border: none !important; 
+    color: white; 
+    font-size: 30px; 
+    cursor: pointer;
+    z-index: 100;
+    line-height: 0.5; 
+    font-weight: 900;
+    opacity: 0.9;
+    padding: 5px;
+  }
+  .menu-button:hover {
+      opacity: 1;
+  }
+  .dropdown-menu {
+    position: absolute;
+    top: 55px; 
+    left: 5px; 
+    background-color: rgba(30, 30, 30, 0.95);
+    border: 1px solid #00A86B;
+    border-radius: 8px;
+    padding: 10px 0;
+    z-index: 99;
+    list-style: none;
+    min-width: 120px; 
+    text-align: right; 
+    display: none; 
+  }
+  .dropdown-menu.show {
+    display: block; 
+  }
+  .dropdown-menu li {
+    padding: 8px 15px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 0.9em;
+  }
+  .dropdown-menu li:hover {
+    background-color: #00A86B;
+  }
+
+  /* تنسيق مؤشر التحميل */
+  .loading-message {
+      margin-top: 20px;
+      font-size: 1.2em;
+      color: #00FF99;
+      display: none;
+  }
+</style>
+</head>
+<body dir="rtl">
+
+  <div id="splashScreen">
+    <button id="startButton" onclick="startApp()">START</button>
+  </div>
+
+  <div id="mainApp" class="hidden">
     
-    if (lang === 'ar') {
-        document.body.dir = 'rtl';
-    } else {
-        document.body.dir = 'ltr';
-    }
-    
-    document.getElementById('result').textContent = ''; 
-}
+    <div id="dateDisplay" class="date-display">
+      </div>
 
-// ***************************************************
-// 4. دالة تبديل ظهور القائمة المنسدلة
-// ***************************************************
-function toggleMenu() {
-    const menu = document.getElementById('languageMenu');
-    menu.classList.toggle('show');
-}
-
-// ***************************************************
-// 5. دالة تبديل العملات (Swap Currencies)
-// ***************************************************
-function swapCurrencies() {
-    const fromSelect = document.getElementById('fromCurrency');
-    const toSelect = document.getElementById('toCurrency');
-    const tempValue = fromSelect.value;
+    <button class="menu-button" id="menuButton" onclick="toggleMenu()">
+        ⋮
+    </button>
     
-    fromSelect.value = toSelect.value;
-    toSelect.value = tempValue;
-    
-    convertCurrency(); 
-}
+    <ul class="dropdown-menu" id="languageMenu">
+        <li onclick="changeLanguage('ar'); toggleMenu();" data-lang-key="lang_arabic">العربية</li>
+        <li onclick="changeLanguage('en'); toggleMenu();" data-lang-key="lang_english">English</li>
+    </ul>
 
-// ***************************************************
-// 6. دالة جلب الأسعار وتعبئة القوائم (مع التخزين المؤقت)
-// ***************************************************
-async function populateCurrencies() {
-    const fromSelect = document.getElementById('fromCurrency');
-    const toSelect = document.getElementById('toCurrency');
-    const resultDiv = document.getElementById('result');
-    const loadingMessage = document.getElementById('loadingMessage');
-    
-    loadingMessage.style.display = 'block';
-    resultDiv.innerText = "";
-    
-    // التحقق من المخزن المؤقت
-    const currentTime = Date.now();
-    const timeSinceLastFetch = currentTime - lastFetchTimestamp;
+    <div class="container">
+      <h2 id="mainTitle">محول العملات الفوري (أسعار حية)</h2>
 
-    // إذا كانت البيانات موجودة وحديثة (ضمن مدة الكاش)، استخدمها مباشرة
-    if (Object.keys(liveExchangeRates).length > 0 && timeSinceLastFetch < CACHE_DURATION_MS) {
-        console.log("استخدام البيانات المخزنة (CACHE) لتوفير الحصة.");
-        loadingMessage.style.display = 'none';
-        fillCurrencySelectors(fromSelect, toSelect);
-        convertCurrency();
-        return;
-    }
-    
-    // إذا كانت غير موجودة أو قديمة، قم بالجلب من API
-    try {
-        const response = await fetch(BASE_URL);
-        const data = await response.json();
+      <input type="number" id="amount" placeholder="أدخل المبلغ" min="0.01" value="1" data-lang-key="placeholder_amount" oninput="convertCurrency()" inputmode="numeric">
 
-        if (data.result === 'success') {
-            liveExchangeRates = data.conversion_rates;
-            lastFetchTimestamp = currentTime; // تحديث وقت الجلب
-            console.log("تم جلب وتحديث الأسعار بنجاح من API.");
-            
-            fillCurrencySelectors(fromSelect, toSelect);
-            convertCurrency();
-
-        } else {
-            console.error("فشل جلب الأسعار من API. يرجى التحقق من المفتاح.");
-            resultDiv.innerText = "عفواً، فشل جلب الأسعار المحدثة. (تحقق من المفتاح أو الحصة).";
-        }
-    } catch (error) {
-        console.error("حدث خطأ في الاتصال بالـ API:", error);
-        resultDiv.innerText = "تعذر الاتصال بخادم الأسعار. تحقق من اتصالك بالإنترنت.";
-    } finally {
-        loadingMessage.style.display = 'none';
-    }
-}
-
-// دالة مساعدة لملء القوائم المنسدلة
-function fillCurrencySelectors(fromSelect, toSelect) {
-    fromSelect.innerHTML = '';
-    toSelect.innerHTML = '';
-
-    for (const code in supportedCurrencies) {
-        if (liveExchangeRates.hasOwnProperty(code)) {
-            const name = supportedCurrencies[code];
-            
-            const option = document.createElement('option');
-            option.value = code;
-            option.textContent = name;
-            
-            fromSelect.appendChild(option);
-            toSelect.appendChild(option.cloneNode(true));
-        }
-    }
-    fromSelect.value = 'USD'; 
-    toSelect.value = 'SYP';
-}
-
-// ***************************************************
-// 7. دالة التحويل باستخدام الأسعار الحية
-// ***************************************************
-function convertCurrency() {
-    const amountInput = document.getElementById('amount');
-    const from = document.getElementById('fromCurrency').value;
-    const to = document.getElementById('toCurrency').value;
-    const resultDiv = document.getElementById('result');
-    const amount = parseFloat(amountInput.value);
-    
-    const currentLang = document.body.dir === 'rtl' ? 'ar' : 'en';
-    const translation = translations[currentLang];
-
-    if (Object.keys(liveExchangeRates).length === 0) {
-        resultDiv.innerText = "الرجاء انتظار تحميل الأسعار من API.";
-        return;
-    }
-
-    if (isNaN(amount) || amount <= 0) {
-      resultDiv.innerText = translation.error_amount;
-      return;
-    }
-    
-    if (!liveExchangeRates.hasOwnProperty(from) || !liveExchangeRates.hasOwnProperty(to)) {
-      resultDiv.innerText = translation.error_rate;
-      return;
-    }
-
-    // حساب التحويل
-    const fromRate = liveExchangeRates[from];
-    const toRate = liveExchangeRates[to];
-    
-    // المعادلة
-    // لتحويل من العملة (FROM) إلى الدولار (USD): Amount / fromRate (لأن الأسعار كلها بالنسبة للدولار)
-    // لتحويل من الدولار (USD) إلى العملة (TO): (Amount / fromRate) * toRate
-    
-    const amountInUSD = amount / fromRate;
-    const convertedAmount = amountInUSD * toRate;
-    
-    const fromName = supportedCurrencies[from];
-    const toName = supportedCurrencies[to];
-    
-    // تنسيق النتيجة لتبدو احترافية (رقمين عشريين)
-    const formattedAmount = convertedAmount.toFixed(2);
-
-    resultDiv.innerHTML = `
-        ${amount.toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
-        <span style="color: #00FF99;">(${fromName})</span>
-        <br> 
-        ${translation.equals_text}: 
-        <br>
-        <span style="color: #FFD700; font-size: 1.2em;">${formattedAmount.toLocaleString(currentLang === 'ar' ? 'ar-EG' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-        <span style="color: #00FF99;">(${toName})</span>
-    `;
-}
-
-// ***************************************************
-// استدعاء الدوال عند تحميل الصفحة
-// ***************************************************
-document.addEventListener('DOMContentLoaded', () => {
-    // إعداد الخلفية الأولية لشاشة الترحيب
-    document.body.style.backgroundImage = SPLASH_BACKGROUND;
-    
-    // عرض التاريخ مباشرة
-    displayCurrentDates(); 
-    
-    // إخفاء القائمة المنسدلة عند النقر خارجها
-    document.addEventListener('click', function(event) {
-        const menu = document.getElementById('languageMenu');
-        const menuButton = document.getElementById('menuButton');
-        if (!menu.contains(event.target) && !menuButton.contains(event.target)) {
-            menu.classList.remove('show');
-        }
-    });
-});
+      <select id="fromCurrency" onchange="convertCurrency()"></select>
       
+      <button onclick="swapCurrencies()" id="swapButton" title="تبديل العملات">
+          &#x21C6;
+      </button>
+
+      <span id="toText" data-lang-key="to_text">إلى</span>
+
+      <select id="toCurrency" onchange="convertCurrency()"></select>
+
+      <div class="loading-message" id="loadingMessage">جاري جلب الأسعار...</div>
+
+      <button onclick="convertCurrency()" id="convertButton" data-lang-key="button_convert" class="app-button">تحويل</button>
+
+      <div class="result" id="result"></div>
+    </div>
+
+    <div class="ad-placeholder">
+        <div class="ad-title">مساحة إعلانية (Google AdSense/AdMob)</div>
+        <div class="ad-text">لربط الإعلان هنا، يجب استبدال هذا الكود بكود الإعلان الخاص بك من Google.</div>
+        <a href="https://support.google.com/adsense/" class="ad-button" target="_blank">تعرف على AdSense</a>
+    </div>
+  </div>
+
+
+<script>
+  // ***************************************************
+  // الروابط المطلوبة للخلفيات:
+  // ***************************************************
+  const ORIGINAL_BACKGROUND = "url('https://image.pollinations.ai/prompt/floating,bitcoin,dollar,currencies,crypto,digital,money,dark,background?width=1024&height=1024&seed=2')";
+  const SPLASH_BACKGROUND = "url('https://image.pollinations.ai/prompt/abstract,cyber,currency,background,neon,glow?width=1024&height=1024&seed=22')";
+
+  // ***************************************************
+  // بيانات API والمخزن المؤقت (CACHE)
+  // ***************************************************
+  const API_KEY = '68667c547b32d00728aef432'; // مفتاح API الخاص بك (هذا مفتاح تجريبي)
+  const BASE_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`;
+  const CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // مدة التخزين المؤقت: 6 ساعات
+
+  let liveExchangeRates = {}; // لتخزين الأسعار التي تم جلبها
+  let lastFetchTimestamp = 0; // لتخزين آخر وقت تم فيه الجلب
+
+  // ***************************************************
+  // العملات المدعومة
+  // ***************************************************
+  const supportedCurrencies = {
+      'USD': 'دولار أمريكي (USD)', 'EUR': 'يورو (EUR)', 'GBP': 'جنيه استرليني (GBP)', 
+      'JPY': 'ين ياباني (JPY)', 'CAD': 'دولار كندي (CAD)', 'RUB': 'روبل روسي (RUB)', 
+      'ILS': 'شيكل إسرائيلي (ILS)', 'ARS': 'بيزو أرجنتيني (ARS)', 'BRL': 'ريال برازيلي (BRL)', 
+      'SAR': 'ريال سعودي (SAR)', 'AED': 'درهم إماراتي (AED)', 'JOD': 'دينار أردني (JOD)', 
+      'KWD': 'دينار كويتي (KWD)', 'BHD': 'دينار بحريني (BHD)', 'QAR': 'ريال قطري (QAR)', 
+      'OMR': 'ريال عماني (OMR)', 'EGP': 'جنيه مصري (EGP)', 'LBP': 'ليرة لبنانية (LBP)', 
+      'SYP': 'ليرة سورية (SYP)',
+  };
+
+  // ***************************************************
+  // دالة تشغيل التطبيق
+  // ***************************************************
+  function startApp() {
+    document.body.style.backgroundImage = ORIGINAL_BACKGROUND;
+    document.getElementById('splashScreen').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    populateCurrencies(); 
+  }
+
+  // ***************************************************
+  // 1. دوال عرض وتقليب التاريخ
+  // ***************************************************
+  let currentCalendarMode = 'gregorian'; 
+
+  function displayCurrentDates() {
+    const dateDisplay = document.getElementById('dateDisplay');
+    const today = new Date();
+
+    const gregorianDate = new Intl.DateTimeFormat('ar-EG', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+    }).format(today);
+
+    const hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+    }).format(today);
+    
+    let dateToShow;
+    let buttonText;
+    
+    if (currentCalendarMode === 'gregorian') {
+        dateToShow = gregorianDate + ' م';
+        buttonText = 'عرض الهجري';
+    } else {
+        dateToShow = hijriDate + ' هـ';
+        buttonText = 'عرض الميلادي';
+    }
+
+    dateDisplay.innerHTML = `
+      <div style="font-size: 1.1em; color: #00FF99;">${dateToShow}</div>
+      <button id="dateToggle" onclick="toggleCalendar()">${buttonText}</button>
+    `;
+  }
+  
+  function toggleCalendar() {
+      currentCalendarMode = (currentCalendarMode === 'gregorian') ? 'hijri' : 'gregorian';
+      displayCurrentDates(); 
+  }
+  
+  // ***************************************************
+  // 2. قاموس الترجمة
+  // ***************************************************
+  const translations = {
+      'ar': {
+          'mainTitle': 'محول العملات الفوري (أسعار حية)',
+          'placeholder_amount': 'أدخل المبلغ',
+          'to_text': 'إلى',
+          'button_convert': 'تحويل',
+          'error_amount': 'الرجاء إدخال مبلغ صحيح وموجب.',
+          'error_rate': 'عذراً، سعر صرف إحدى العملات غير متوفر.',
+          'lang_arabic': 'العربية',
+          'lang_english': 'English',
+          'equals_text': 'يساوي'
+      },
+      'en': {
+          'mainTitle': 'Instant Currency Converter (Live Rates)',
+          'placeholder_amount': 'Enter Amount',
+          'to_text': 'To',
+          'button_convert': 'Convert',
+          'error_amount': 'Please enter a valid, positive amount.',
+          'error_rate': 'Sorry, the exchange rate for one of the currencies is unavailable.',
+          'lang_arabic': 'العربية',
+          'lang_english': 'English',
+          'equals_text': 'Equals'
+      }
+  };
+
+  // ***************************************************
+  // 3. دالة تبديل اللغة وتحديث الواجهة
+  // ***************************************************
+  function changeLanguage(lang) {
+      const currentTranslation = translations[lang];
+      if (!currentTranslation) return;
+
+      document.getElementById('mainTitle').textContent = currentTranslation.mainTitle;
+      document.getElementById('amount').placeholder = currentTranslation.placeholder_amount;
+      document.getElementById('toText').textContent = currentTranslation.to_text;
+      document.getElementById('convertButton').textContent = currentTranslation.button_convert;
+      
+      if (lang === 'ar') {
+          document.body.dir = 'rtl';
+      } else {
+          document.body.dir = 'ltr';
+      }
+      
+      document.getElementById('result').textContent = ''; 
+  }
+  
+  // ***************************************************
+  // 4. دالة تبديل ظهور القائمة المنسدلة
+  // ***************************************************
+  function toggleMenu() {
+      const menu = document.getElementById('languageMenu');
+      menu.classList.toggle('show');
+  }
+
+  // ***************************************************
+  // 5. دالة تبديل العملات (Swap Currencies)
+  // ***************************************************
+  function swapCurrencies() {
+      const fromSelect = document.getElementById('fromCurrency');
+      const toSelect = document.getElementById('toCurrency');
+      const tempValue = fromSelect.value;
+      
+      fromSelect.value = toSelect.value;
+      toSelect.value = tempValue;
+      
+      convertCurrency(); 
+  }
+
+  // ***************************************************
+  // 6. دالة جلب الأسعار وتعبئة القوائم (مع التخزين المؤقت)
+  // ***************************************************
+  async function populateCurrencies() {
+      const fromSelect = document.getElementById('fromCurrency');
+      const toSelect = document.getElementById('toCurrency');
+      const resultDiv = document.getElementById('result');
+      const loadingMessage = document.getElementById('loadingMessage');
+      
+      loadingMessage.style.display = 'block';
+      resultDiv.innerText = "";
+      
+      // التحقق من المخزن المؤقت
+      const currentTime = Date.now();
+      const timeSinceLastFetch = currentTime - lastFetchTimestamp;
+
+      // إذا كانت البيانات موجودة وحديثة (ضمن مدة الكاش)، استخدمها مباشرة
+      if (Object.keys(liveExchangeRates).length > 0 && timeSinceLastFetch < CACHE_DURATION_MS) {
+          console.log("استخدام البيانات المخزنة (CACHE) لتوفير الحصة.");
+          loadingMessage.style.display = 'none';
+          fillCurrencySelectors(fromSelect, toSelect);
+          convertCurrency();
+          return;
+      }
+      
+      // إذا كانت غير موجودة أو قديمة، قم بالجلب من API
+      try {
+          const response = await fetch(BASE_URL);
+          const data = await response.json();
+
+          if (data.result === 'success') {
+              liveExchangeRates = data.conversion_rates;
+              lastFetchTimestamp = currentTime; // تحديث وقت الجلب
+              console.log("تم جلب وتحديث الأسعار بنجاح من API.");
+              
+              fillCurrencySelectors(fromSelect, toSelect);
+              convertCurrency();
+
+          } else {
+              console.error("فشل جلب الأسعار من API. يرجى التحقق من المفتاح.");
+              resultDiv.innerText = "عفواً، فشل جلب الأسعار المحدثة. (تحقق من المفتاح أو الحصة).";
+          }
+      } catch (error) {
+          console.error("حدث خطأ في الاتصال بالـ API:", error);
+          resultDiv.innerText = "تعذر الاتصال بخادم الأسعار. تحقق من اتصالك بالإنترنت.";
+      } finally {
+          loadingMessage.style.display = 'none';
+      }
+  }
+
+  // دالة مساعدة لملء القوائم المنسدلة
+  function fillCurrencySelectors(fromSelect, toSelect) {
+      fromSelect.innerHTML = '';
+      toSelect.innerHTML = '';
+
+      for (const code in supportedCurrencies) {
+          if (liveExchangeRates.hasOwnProperty(code)) {
+              const name = supportedCurrencies[code];
+              
+              const option = document.createElement('option');
+              option.value = code;
+              option.textContent = name;
+              
+              fromSelect.appendChild(option);
+              toSelect.appendChild(option.cloneNode(true));
+          }
+      }
+      fromSelect.value = 'USD'; 
+      toSelect.value = 'SYP';
+  }
+
+  // ***************************************************
+  // 7. دالة التحويل باستخدام الأسعار الحية
+  // ***************************************************
+  function convertCurrency() {
+      const amountInput = document.getElementById('amount');
+      const from = document.getElementById('fromCurrency').value;
+      const to = document.getElementById('toCurrency').value;
+      const resultDiv = document.getElementById('result');
+      const amount = parseFloat(amountInput.value);
+      
+      const currentLang = document.body.dir === 'rtl' ? 'ar' : 'en';
+      const translation = translations[currentLang];
+
+      if (Object.keys(liveExchangeRates).length === 0) {
+          resultDiv.innerText = "الرجاء انتظار تحميل الأسعار من API.";
+          return;
+      }
+
+      if (isNaN(amount) || amount <= 0) {
+        resultDiv.innerText = translation.error_amount;
+        return;
+      }
+      
+      if (!liveExchangeRates.hasOwnProperty(from) || !liveExchangeRates.hasOwnProperty(to)) {
+        resultDiv.innerText = translation.error_rate;
+        return;
+      }
+
+      // حساب التحويل
+      const fromRate = liveExchangeRates[from];
+      const toRate = liveExchangeRates[to];
+      
+      // المعادلة: تحويل المبلغ أولاً إلى الدولار (العملة الأساسية للـ API
